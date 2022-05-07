@@ -1,0 +1,49 @@
+version: '3.7'
+
+services:
+  nginx:
+    image: nginx:1.19.8-alpine
+    container_name: nginx
+    environment:
+      DOMAIN_NAME_OR_IP: $DOMAIN_NAME_OR_IP
+      UID: 2000
+      GID: 2000
+    volumes:
+      - ./nginx/templates/stage.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - ./nginx/entrypoint/00-ssl_conf.sh:/docker-entrypoint.d/00-ssl_conf.sh:ro
+      # Mount static files if need
+#      - staticfiles:/usr/share/nginx/html/staticfiles/:ro
+#      - mediafiles:/usr/share/nginx/html/mediafiles/:ro
+      - letsencrypt:/etc/letsencrypt
+      - certbot_data:/var/www/certbot
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      - frontend_network
+    restart: unless-stopped
+
+  certbot:
+    container_name: certbot
+    image: certbot/certbot:v1.16.0
+    entrypoint: "/opt/app/init.sh"
+    environment:
+      DOMAIN_NAME_OR_IP: $DOMAIN_NAME_OR_IP
+      DOMAIN_ADMIN_EMAIL: $DOMAIN_ADMIN_EMAIL
+      UID: 2000
+      GID: 2000
+    volumes:
+      - ./certbot:/opt/app:ro
+      - letsencrypt:/etc/letsencrypt
+      - certbot_data:/var/www/certbot
+    networks:
+      - frontend_network
+    depends_on:
+      - nginx
+
+networks:
+  frontend_network: {}
+
+volumes:
+  certbot_data: {}
+  letsencrypt: {}
